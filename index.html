@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Habits"/>
+  <meta name="theme-color" content="#0f0f0e"/>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="apple-touch-icon" href="icon-192.png"/>
+  <title>Daily Habits</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+
+  <style>
+    :root {
+      --bg:        #0f0f0e;
+      --bg2:       #181816;
+      --bg3:       #222220;
+      --gold:      #c9a96e;
+      --gold-dim:  #8a6e3e;
+      --gold-glow: rgba(201,169,110,.15);
+      --text:      #ede8df;
+      --text-dim:  #7a746a;
+      --text-mid:  #b0a898;
+      --green:     #6a9e6f;
+      --red:       #c46b5a;
+      --safe-top:  env(safe-area-inset-top, 0px);
+      --safe-bot:  env(safe-area-inset-bottom, 0px);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%; width: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      -webkit-tap-highlight-color: transparent;
+      overflow: hidden;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      max-width: 430px;
+      margin: 0 auto;
+      position: relative;
+    }
+
+    /* ── HEADER ── */
+    header {
+      padding: calc(var(--safe-top) + 18px) 24px 0;
+      flex-shrink: 0;
+    }
+
+    .header-inner {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+    }
+
+    .date-label {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--gold);
+    }
+
+    .page-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 32px;
+      font-weight: 600;
+      letter-spacing: -.01em;
+      line-height: 1;
+      color: var(--text);
+    }
+
+    .streak-badge {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--gold-glow);
+      border: 1px solid var(--gold-dim);
+      border-radius: 20px;
+      padding: 5px 11px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--gold);
+    }
+
+    .streak-badge .flame { font-size: 14px; }
+
+    /* ── TABS ── */
+    .tab-bar {
+      display: flex;
+      margin: 18px 24px 0;
+      background: var(--bg2);
+      border-radius: 12px;
+      padding: 4px;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 8px 0;
+      border-radius: 9px;
+      border: none;
+      background: transparent;
+      color: var(--text-dim);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all .2s;
+      letter-spacing: .01em;
+    }
+
+    .tab.active {
+      background: var(--bg3);
+      color: var(--gold);
+      box-shadow: 0 1px 4px rgba(0,0,0,.4);
+    }
+
+    /* ── SCROLL AREA ── */
+    .scroll-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 24px calc(var(--safe-bot) + 16px);
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .scroll-area::-webkit-scrollbar { display: none; }
+
+    /* ── TODAY VIEW ── */
+    .progress-ring-wrap {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      background: var(--bg2);
+      border-radius: 16px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+    }
+
+    .ring-svg { flex-shrink: 0; }
+
+    .ring-bg  { fill: none; stroke: var(--bg3); stroke-width: 5; }
+    .ring-arc {
+      fill: none; stroke: var(--gold); stroke-width: 5;
+      stroke-linecap: round;
+      transform: rotate(-90deg);
+      transform-origin: 50% 50%;
+      transition: stroke-dashoffset .5s cubic-bezier(.4,0,.2,1);
+    }
+
+    .ring-text {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 20px;
+      font-weight: 600;
+      fill: var(--text);
+      dominant-baseline: middle;
+      text-anchor: middle;
+    }
+
+    .ring-sub {
+      font-size: 9px;
+      fill: var(--text-dim);
+      dominant-baseline: middle;
+      text-anchor: middle;
+      font-family: 'DM Sans', sans-serif;
+      letter-spacing: .04em;
+    }
+
+    .progress-meta { flex: 1; }
+    .progress-meta .label {
+      font-size: 11px;
+      color: var(--text-dim);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .progress-meta .fraction {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 26px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1;
+    }
+
+    .progress-meta .fraction span {
+      font-size: 14px;
+      color: var(--text-dim);
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 400;
+    }
+
+    .progress-meta .pct {
+      font-size: 12px;
+      color: var(--gold);
+      margin-top: 2px;
+    }
+
+    /* ── HABIT LIST ── */
+    .habits-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .habit-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: var(--bg2);
+      border-radius: 14px;
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: background .15s, transform .1s;
+      border: 1px solid transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .habit-row:active { transform: scale(0.98); }
+
+    .habit-row.done {
+      background: var(--bg2);
+      border-color: var(--gold-dim);
+    }
+
+    .habit-icon {
+      font-size: 22px;
+      width: 38px;
+      height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg3);
+      border-radius: 10px;
+      flex-shrink: 0;
+      transition: background .2s;
+    }
+
+    .habit-row.done .habit-icon { background: var(--gold-glow); }
+
+    .habit-info { flex: 1; min-width: 0; }
+
+    .habit-name {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text);
+      transition: color .2s;
+    }
+
+    .habit-row.done .habit-name { color: var(--text-mid); }
+
+    .habit-streak-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 1px;
+    }
+
+    .habit-streak-label.active { color: var(--gold); }
+
+    .check-box {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      border: 2px solid var(--bg3);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: all .2s;
+      background: var(--bg3);
+    }
+
+    .habit-row.done .check-box {
+      background: var(--gold);
+      border-color: var(--gold);
+    }
+
+    .check-box svg { opacity: 0; transform: scale(.5); transition: all .2s; }
+    .habit-row.done .check-box svg { opacity: 1; transform: scale(1); }
+
+    /* ── NOTES ── */
+    .notes-section { margin-top: 20px; }
+
+    .notes-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .notes-input {
+      width: 100%;
+      background: var(--bg2);
+      border: 1px solid var(--bg3);
+      border-radius: 12px;
+      padding: 12px 14px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      resize: none;
+      outline: none;
+      transition: border-color .2s;
+      min-height: 70px;
+    }
+
+    .notes-input:focus { border-color: var(--gold-dim); }
+    .notes-input::placeholder { color: var(--text-dim); }
+
+    /* ── WEEKLY DASHBOARD ── */
+    .week-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+
+    .week-nav .wlabel {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .week-btn {
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      border: 1px solid var(--bg3);
+      background: var(--bg2);
+      color: var(--text-mid);
+      font-size: 16px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .15s;
+    }
+    .week-btn:active { background: var(--bg3); }
+
+    /* Summary strip */
+    .week-summary {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px;
+      margin-bottom: 22px;
+    }
+
+    .day-col { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+
+    .day-label {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-dim);
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .day-label.today { color: var(--gold); }
+
+    .day-dot {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: var(--bg3);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-dim);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .day-dot .fill {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: var(--gold);
+      opacity: .25;
+      transition: height .4s;
+    }
+
+    .day-dot.perfect .fill { opacity: .6; }
+    .day-dot span { position: relative; z-index: 1; }
+
+    /* Habit grid */
+    .grid-header {
+      display: grid;
+      grid-template-columns: 110px repeat(7, 1fr);
+      gap: 0;
+      margin-bottom: 4px;
+    }
+
+    .gh-cell {
+      font-size: 10px;
+      color: var(--text-dim);
+      text-align: center;
+      letter-spacing: .04em;
+      padding-bottom: 4px;
+    }
+
+    .gh-cell.today { color: var(--gold); }
+
+    .habit-grid-row {
+      display: grid;
+      grid-template-columns: 110px repeat(7, 1fr);
+      gap: 0;
+      padding: 4px 0;
+      border-bottom: 1px solid var(--bg3);
+      align-items: center;
+    }
+
+    .habit-grid-row:last-child { border-bottom: none; }
+
+    .habit-grid-name {
+      font-size: 12px;
+      color: var(--text-mid);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      padding-right: 6px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .habit-grid-name .ico { font-size: 13px; }
+
+    .grid-cell {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .grid-pip {
+      width: 18px; height: 18px;
+      border-radius: 5px;
+      background: var(--bg3);
+      transition: background .2s;
+    }
+
+    .grid-pip.done { background: var(--gold); }
+    .grid-pip.today-cell { outline: 2px solid var(--gold-dim); outline-offset: 1px; }
+
+    /* Score cards */
+    .score-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .score-card {
+      background: var(--bg2);
+      border-radius: 14px;
+      padding: 14px 16px;
+    }
+
+    .sc-label {
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .sc-value {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 28px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1;
+    }
+
+    .sc-value.gold { color: var(--gold); }
+
+    .sc-sub {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+
+    /* Best habit */
+    .best-habit-card {
+      background: var(--bg2);
+      border: 1px solid var(--gold-dim);
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .bh-icon { font-size: 26px; }
+
+    .bh-label {
+      font-size: 10px;
+      color: var(--gold);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-bottom: 3px;
+    }
+
+    .bh-name {
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .bh-streak { font-size: 12px; color: var(--text-dim); margin-top: 1px; }
+
+    /* Section title */
+    .section-title {
+      font-size: 11px;
+      color: var(--text-dim);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    /* Animations */
+    @keyframes pop {
+      0%   { transform: scale(1); }
+      40%  { transform: scale(1.12); }
+      100% { transform: scale(1); }
+    }
+
+    .habit-row.just-checked { animation: pop .3s ease; }
+
+    /* Page transitions */
+    .view { display: none; }
+    .view.active { display: block; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="date-label" id="dateLabel"></div>
+    <div class="header-inner" style="margin-top:4px">
+      <div class="page-title" id="pageTitle">Today</div>
+      <div class="streak-badge">
+        <span class="flame">🔥</span>
+        <span id="streakCount">0</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="tab-bar">
+    <button class="tab active" data-tab="today">Today</button>
+    <button class="tab" data-tab="week">This Week</button>
+  </div>
+
+  <div class="scroll-area">
+
+    <!-- TODAY VIEW -->
+    <div class="view active" id="view-today">
+      <div class="progress-ring-wrap">
+        <svg class="ring-svg" width="64" height="64" viewBox="0 0 64 64">
+          <circle class="ring-bg" cx="32" cy="32" r="26"/>
+          <circle class="ring-arc" id="ringArc" cx="32" cy="32" r="26"
+            stroke-dasharray="163.4" stroke-dashoffset="163.4"/>
+          <text class="ring-text" x="32" y="30" id="ringPct">0%</text>
+          <text class="ring-sub" x="32" y="44">done</text>
+        </svg>
+        <div class="progress-meta">
+          <div class="label">Daily Progress</div>
+          <div class="fraction" id="fractionText">0 <span>/ 9</span></div>
+          <div class="pct" id="pctText">Keep going!</div>
+        </div>
+      </div>
+
+      <div class="habits-list" id="habitsList"></div>
+
+      <div class="notes-section">
+        <div class="notes-label">Daily Note</div>
+        <textarea class="notes-input" id="notesInput" placeholder="How did today feel? Any wins or blocks..." rows="3"></textarea>
+      </div>
+    </div>
+
+    <!-- WEEK VIEW -->
+    <div class="view" id="view-week">
+      <div class="week-nav">
+        <button class="week-btn" id="prevWeek">‹</button>
+        <div class="wlabel" id="weekLabel"></div>
+        <button class="week-btn" id="nextWeek">›</button>
+      </div>
+
+      <div class="score-cards">
+        <div class="score-card">
+          <div class="sc-label">Week Score</div>
+          <div class="sc-value gold" id="weekScore">—</div>
+          <div class="sc-sub" id="weekScoreSub">habits completed</div>
+        </div>
+        <div class="score-card">
+          <div class="sc-label">Completion</div>
+          <div class="sc-value" id="weekPct">—</div>
+          <div class="sc-sub">of possible</div>
+        </div>
+      </div>
+
+      <div class="best-habit-card" id="bestHabitCard">
+        <div class="bh-icon" id="bhIcon">—</div>
+        <div>
+          <div class="bh-label">Best Streak</div>
+          <div class="bh-name" id="bhName">—</div>
+          <div class="bh-streak" id="bhStreak">—</div>
+        </div>
+      </div>
+
+      <div class="section-title">Daily Overview</div>
+      <div class="week-summary" id="weekSummary"></div>
+
+      <div class="section-title" style="margin-top:18px">Habit Grid</div>
+      <div class="grid-header" id="gridHeader"></div>
+      <div id="habitGrid"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const HABITS = [
+  { id:'sleep',       name:'Sleep',       icon:'🌙' },
+  { id:'sunlight',    name:'Sunlight',    icon:'☀️' },
+  { id:'workout',     name:'Workout',     icon:'🏋️' },
+  { id:'vitamins',    name:'Vitamins',    icon:'💊' },
+  { id:'sauna',       name:'Sauna',       icon:'🧖' },
+  { id:'mindfulness', name:'Mindfulness', icon:'🧘' },
+  { id:'nutrition',   name:'Nutrition',   icon:'🥗' },
+  { id:'reading',     name:'Reading',     icon:'📖' },
+  { id:'chess',       name:'Chess',       icon:'♟️' },
+];
+
+// ── STORAGE ─────────────────────────────────────────────
+function getStore() {
+  try { return JSON.parse(localStorage.getItem('habits_v2') || '{}'); }
+  catch { return {}; }
+}
+function saveStore(s) { localStorage.setItem('habits_v2', JSON.stringify(s)); }
+
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function getDayData(key) {
+  const s = getStore();
+  return s[key] || { done: [], note: '' };
+}
+
+function saveDayData(key, data) {
+  const s = getStore();
+  s[key] = data;
+  saveStore(s);
+}
+
+function toggleHabit(habitId) {
+  const key = todayKey();
+  const day = getDayData(key);
+  const idx = day.done.indexOf(habitId);
+  if (idx === -1) day.done.push(habitId);
+  else day.done.splice(idx, 1);
+  saveDayData(key, day);
+}
+
+// ── STREAK CALCULATION ──────────────────────────────────
+function calcStreak() {
+  const store = getStore();
+  let streak = 0;
+  const d = new Date();
+  while (true) {
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const day = store[key];
+    if (!day || day.done.length === 0) break;
+    streak++;
+    d.setDate(d.getDate() - 1);
+  }
+  return streak;
+}
+
+function calcHabitStreak(habitId) {
+  const store = getStore();
+  let streak = 0;
+  const d = new Date();
+  while (true) {
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const day = store[key];
+    if (!day || !day.done.includes(habitId)) break;
+    streak++;
+    d.setDate(d.getDate() - 1);
+  }
+  return streak;
+}
+
+// ── TODAY RENDER ─────────────────────────────────────────
+function renderToday() {
+  const key = todayKey();
+  const day = getDayData(key);
+  const total = HABITS.length;
+  const done = day.done.length;
+  const pct = Math.round((done / total) * 100);
+  const circumference = 2 * Math.PI * 26; // ≈163.4
+
+  // Ring
+  const arc = document.getElementById('ringArc');
+  const offset = circumference - (done / total) * circumference;
+  arc.style.strokeDashoffset = offset;
+  document.getElementById('ringPct').textContent = pct + '%';
+  document.getElementById('fractionText').innerHTML = `${done} <span>/ ${total}</span>`;
+
+  const msgs = ['Let\'s go!','Keep going!','Halfway there!','Almost done!','Incredible! 🏆'];
+  const mi = done === total ? 4 : done >= 7 ? 3 : done >= 5 ? 2 : done >= 3 ? 1 : 0;
+  document.getElementById('pctText').textContent = msgs[mi];
+
+  document.getElementById('streakCount').textContent = calcStreak();
+
+  // Habits
+  const list = document.getElementById('habitsList');
+  list.innerHTML = '';
+  HABITS.forEach(h => {
+    const isDone = day.done.includes(h.id);
+    const streak = calcHabitStreak(h.id);
+    const row = document.createElement('div');
+    row.className = 'habit-row' + (isDone ? ' done' : '');
+    row.innerHTML = `
+      <div class="habit-icon">${h.icon}</div>
+      <div class="habit-info">
+        <div class="habit-name">${h.name}</div>
+        <div class="habit-streak-label ${streak > 1 ? 'active' : ''}">
+          ${streak > 1 ? `🔥 ${streak} day streak` : 'Start your streak'}
+        </div>
+      </div>
+      <div class="check-box">
+        <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
+          <path d="M1 5l3.5 3.5L11 1" stroke="#0f0f0e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    `;
+    row.addEventListener('click', () => {
+      toggleHabit(h.id);
+      row.classList.add('just-checked');
+      setTimeout(() => row.classList.remove('just-checked'), 300);
+      renderToday();
+    });
+    list.appendChild(row);
+  });
+
+  // Notes
+  const ni = document.getElementById('notesInput');
+  ni.value = day.note || '';
+  ni.oninput = () => {
+    const d2 = getDayData(key);
+    d2.note = ni.value;
+    saveDayData(key, d2);
+  };
+}
+
+// ── WEEK VIEW ─────────────────────────────────────────────
+let weekOffset = 0; // 0 = current week
+
+function getWeekDates(offset) {
+  const today = new Date();
+  const dow = today.getDay(); // 0=Sun
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1) + offset * 7);
+  return Array.from({length: 7}, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return d;
+  });
+}
+
+function dateKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function isTodayDate(d) {
+  const t = new Date();
+  return d.getFullYear()===t.getFullYear() && d.getMonth()===t.getMonth() && d.getDate()===t.getDate();
+}
+
+function renderWeek() {
+  const days = getWeekDates(weekOffset);
+  const todayStr = todayKey();
+  const store = getStore();
+  const DAY_LABELS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  // Week label
+  const start = days[0], end = days[6];
+  document.getElementById('weekLabel').textContent =
+    `${MONTHS[start.getMonth()]} ${start.getDate()} – ${MONTHS[end.getMonth()]} ${end.getDate()}`;
+
+  // Score
+  let totalDone = 0, totalPossible = 0;
+  days.forEach(d => {
+    const key = dateKey(d);
+    const day = store[key];
+    if (day) {
+      totalDone += day.done.length;
+      totalPossible += HABITS.length;
+    } else if (d <= new Date()) {
+      totalPossible += HABITS.length;
+    }
+  });
+  document.getElementById('weekScore').textContent = totalDone;
+  document.getElementById('weekPct').textContent =
+    totalPossible > 0 ? Math.round((totalDone/totalPossible)*100) + '%' : '—';
+
+  // Best streak
+  let bestStreak = 0, bestHabit = null;
+  HABITS.forEach(h => {
+    const s = calcHabitStreak(h.id);
+    if (s > bestStreak) { bestStreak = s; bestHabit = h; }
+  });
+  if (bestHabit) {
+    document.getElementById('bhIcon').textContent = bestHabit.icon;
+    document.getElementById('bhName').textContent = bestHabit.name;
+    document.getElementById('bhStreak').textContent = `${bestStreak} day streak`;
+  }
+
+  // Summary dots
+  const sumEl = document.getElementById('weekSummary');
+  sumEl.innerHTML = '';
+  days.forEach((d, i) => {
+    const key = dateKey(d);
+    const day = store[key];
+    const cnt = day ? day.done.length : 0;
+    const isToday = isTodayDate(d);
+    const fillH = cnt > 0 ? Math.round((cnt / HABITS.length) * 28) : 0;
+    const perfect = cnt === HABITS.length;
+    const col = document.createElement('div');
+    col.className = 'day-col';
+    col.innerHTML = `
+      <div class="day-label ${isToday ? 'today' : ''}">${DAY_LABELS[i]}</div>
+      <div class="day-dot ${perfect ? 'perfect' : ''}">
+        <div class="fill" style="height:${fillH}px"></div>
+        <span>${cnt}</span>
+      </div>
+    `;
+    sumEl.appendChild(col);
+  });
+
+  // Grid header
+  const ghEl = document.getElementById('gridHeader');
+  ghEl.innerHTML = '<div class="gh-cell"></div>' +
+    days.map((d,i) => `<div class="gh-cell ${isTodayDate(d)?'today':''}">${DAY_LABELS[i]}</div>`).join('');
+
+  // Habit grid
+  const gridEl = document.getElementById('habitGrid');
+  gridEl.innerHTML = '';
+  HABITS.forEach(h => {
+    const row = document.createElement('div');
+    row.className = 'habit-grid-row';
+    let cells = `<div class="habit-grid-name"><span class="ico">${h.icon}</span>${h.name}</div>`;
+    days.forEach(d => {
+      const key = dateKey(d);
+      const day = store[key];
+      const done = day && day.done.includes(h.id);
+      const isToday = isTodayDate(d);
+      cells += `<div class="grid-cell"><div class="grid-pip ${done?'done':''} ${isToday?'today-cell':''}"></div></div>`;
+    });
+    row.innerHTML = cells;
+    gridEl.appendChild(row);
+  });
+}
+
+// ── TABS ──────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = btn.dataset.tab;
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-' + tab).classList.add('active');
+    document.getElementById('pageTitle').textContent = tab === 'today' ? 'Today' : 'This Week';
+    if (tab === 'week') renderWeek();
+  });
+});
+
+document.getElementById('prevWeek').addEventListener('click', () => { weekOffset--; renderWeek(); });
+document.getElementById('nextWeek').addEventListener('click', () => { if (weekOffset < 0) { weekOffset++; renderWeek(); } });
+
+// ── DATE HEADER ───────────────────────────────────────────
+function setDateLabel() {
+  const d = new Date();
+  const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('dateLabel').textContent =
+    `${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}`;
+}
+
+// ── INIT ──────────────────────────────────────────────────
+setDateLabel();
+renderToday();
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
