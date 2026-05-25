@@ -764,10 +764,71 @@
     /* Page transitions */
     .view { display: none; }
     .view.active { display: block; }
+
+    /* ── AUTH GATE ── */
+    .auth-gate { min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: 32px 24px; max-width: 430px; margin: 0 auto; }
+    .auth-card { width: 100%; max-width: 320px; text-align: center; }
+    .auth-flame { font-size: 44px; margin-bottom: 14px; opacity: 0.9; }
+    .auth-title { font-family: 'Cormorant Garamond', serif; font-weight: 600; font-size: 34px; color: var(--text); margin: 0 0 12px; letter-spacing: -0.01em; }
+    .auth-intro { font-family: 'DM Sans', sans-serif; font-size: 13.5px; color: var(--text-mid); margin: 0 0 26px; line-height: 1.55; }
+    .auth-form { display: none; flex-direction: column; gap: 10px; }
+    .auth-form.show { display: flex; }
+    .auth-form input { background: var(--bg2); border: 1px solid var(--bg3); border-radius: 12px; padding: 13px 16px; font-family: 'DM Sans', sans-serif; font-size: 15px; color: var(--text); text-align: center; outline: none; transition: border-color .2s; -webkit-appearance: none; }
+    .auth-form input:focus { border-color: var(--gold-dim); }
+    .auth-form input::placeholder { color: var(--text-dim); }
+    #authCode { letter-spacing: 0.4em; font-variant-numeric: tabular-nums; font-size: 20px; padding: 15px 16px; }
+    .auth-form button[type="submit"] { background: var(--gold); color: var(--bg); border: none; border-radius: 12px; padding: 13px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; letter-spacing: 0.04em; cursor: pointer; transition: opacity .2s; }
+    .auth-form button[type="submit"]:hover:not(:disabled) { opacity: 0.9; }
+    .auth-form button[type="submit"]:disabled { opacity: 0.4; cursor: default; }
+    .auth-back { background: none; border: none; padding: 6px 0; font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--text-dim); text-decoration: underline; text-decoration-style: dotted; cursor: pointer; margin-top: 4px; }
+    .auth-back:hover { color: var(--gold); }
+    .auth-status { font-family: 'DM Sans', sans-serif; font-size: 12.5px; color: var(--text-dim); margin-top: 16px; min-height: 1.2em; line-height: 1.5; }
+    .auth-status.success { color: var(--gold); }
+    .auth-status.error   { color: var(--red); }
+
+    /* SIGN OUT */
+    .signout-btn {
+      margin-top: 14px;
+      width: 100%;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 12px;
+      padding: 10px;
+      color: var(--text-dim);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      cursor: pointer;
+      letter-spacing: .04em;
+    }
+    .signout-btn:hover { color: var(--text-mid); }
   </style>
 </head>
 <body>
-<div id="app">
+
+<!-- AUTH GATE -->
+<div class="auth-gate" id="authGate" hidden>
+  <div class="auth-card">
+    <div class="auth-flame">🔥</div>
+    <h1 class="auth-title">Daily Habits</h1>
+    <p class="auth-intro">Sign in to sync your habits across devices.</p>
+
+    <form class="auth-form auth-step show" id="authStepEmail">
+      <input id="authEmail" type="email" placeholder="your email" autocomplete="email" required>
+      <button type="submit" id="authSend">Send sign-in code</button>
+    </form>
+
+    <form class="auth-form auth-step" id="authStepCode">
+      <input id="authCode" type="text" inputmode="numeric" autocomplete="one-time-code"
+             maxlength="8" placeholder="········" required>
+      <button type="submit" id="authVerify">Verify code</button>
+      <button type="button" class="auth-back" id="authBack">Use a different email</button>
+    </form>
+
+    <p class="auth-status" id="authStatus"></p>
+  </div>
+</div>
+
+<div id="app" hidden>
   <header>
     <div class="date-label" id="dateLabel"></div>
     <div class="header-inner" style="margin-top:4px">
@@ -815,6 +876,8 @@
         🔔 Set up phone reminders
         <span class="rb-sub">daily 8pm · sundays 10am · adds to your calendar</span>
       </button>
+
+      <button class="signout-btn" id="signoutBtn">Sign out</button>
     </div>
 
     <!-- WEEK VIEW -->
@@ -881,7 +944,13 @@
   </div>
 </div>
 
-<script>
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const SUPABASE_URL = 'https://kdaxubsmszojkdsxjpgs.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_Z31hI91ksy8uDB1x-sVP_A_aSuVVaF0';
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 const HABITS = [
   { id:'sleep',       name:'Sleep',       icon:'🌙' },
   { id:'sunlight',    name:'Sunlight',    icon:'☀️' },
@@ -902,12 +971,11 @@ const WEEKLY_ITEMS = [
   { id:'contacted',  name:'NSP — People Contacted',  icon:'🤝', type:'number',    goal:2, unit:'people' },
 ];
 
-// ── STORAGE ─────────────────────────────────────────────
-function getStore() {
-  try { return JSON.parse(localStorage.getItem('habits_v2') || '{}'); }
-  catch { return {}; }
-}
-function saveStore(s) { localStorage.setItem('habits_v2', JSON.stringify(s)); }
+// ── STATE (in-memory cache; source of truth = Supabase) ─────────
+let session = null;
+let store = {};         // { 'YYYY-MM-DD': { done:[habitId,...], note:'' } }
+let weeklyStore = {};   // { 'YYYY-W##': { metricId: value, ... } }
+let noteSaveTimer = null;
 
 function todayKey() {
   const d = new Date();
@@ -915,28 +983,82 @@ function todayKey() {
 }
 
 function getDayData(key) {
-  const s = getStore();
-  return s[key] || { done: [], note: '' };
+  return store[key] || { done: [], note: '' };
 }
 
-function saveDayData(key, data) {
-  const s = getStore();
-  s[key] = data;
-  saveStore(s);
+async function loadAll() {
+  if (!session) return;
+  const since = new Date();
+  since.setDate(since.getDate() - 120);
+  const sinceKey = `${since.getFullYear()}-${String(since.getMonth()+1).padStart(2,'0')}-${String(since.getDate()).padStart(2,'0')}`;
+
+  const [checksRes, notesRes, metricsRes] = await Promise.all([
+    supabase.from('habit_daily_checks').select('check_date, habit_id').gte('check_date', sinceKey),
+    supabase.from('habit_daily_notes').select('check_date, note').gte('check_date', sinceKey),
+    supabase.from('habit_weekly_metrics').select('week_iso, metric_id, value_num, value_text')
+  ]);
+  if (checksRes.error)  console.error('checks load:', checksRes.error);
+  if (notesRes.error)   console.error('notes load:', notesRes.error);
+  if (metricsRes.error) console.error('metrics load:', metricsRes.error);
+
+  store = {};
+  (checksRes.data || []).forEach(r => {
+    if (!store[r.check_date]) store[r.check_date] = { done: [], note: '' };
+    store[r.check_date].done.push(r.habit_id);
+  });
+  (notesRes.data || []).forEach(r => {
+    if (!store[r.check_date]) store[r.check_date] = { done: [], note: '' };
+    store[r.check_date].note = r.note || '';
+  });
+
+  weeklyStore = {};
+  (metricsRes.data || []).forEach(r => {
+    if (!weeklyStore[r.week_iso]) weeklyStore[r.week_iso] = {};
+    weeklyStore[r.week_iso][r.metric_id] = r.value_num !== null ? r.value_num : r.value_text;
+  });
 }
 
-function toggleHabit(habitId) {
+async function toggleHabit(habitId) {
+  if (!session) return;
   const key = todayKey();
-  const day = getDayData(key);
-  const idx = day.done.indexOf(habitId);
-  if (idx === -1) day.done.push(habitId);
-  else day.done.splice(idx, 1);
-  saveDayData(key, day);
+  if (!store[key]) store[key] = { done: [], note: '' };
+  const idx = store[key].done.indexOf(habitId);
+  const adding = idx === -1;
+  if (adding) store[key].done.push(habitId);
+  else store[key].done.splice(idx, 1);
+
+  if (adding) {
+    const { error } = await supabase.from('habit_daily_checks').insert({
+      user_id: session.user.id, check_date: key, habit_id: habitId
+    });
+    if (error) console.error('toggleHabit insert:', error);
+  } else {
+    const { error } = await supabase.from('habit_daily_checks').delete()
+      .eq('user_id', session.user.id).eq('check_date', key).eq('habit_id', habitId);
+    if (error) console.error('toggleHabit delete:', error);
+  }
+}
+
+async function saveNoteDebounced(key, text) {
+  if (!store[key]) store[key] = { done: [], note: '' };
+  store[key].note = text;
+  clearTimeout(noteSaveTimer);
+  noteSaveTimer = setTimeout(async () => {
+    if (!session) return;
+    if (text) {
+      const { error } = await supabase.from('habit_daily_notes')
+        .upsert({ user_id: session.user.id, check_date: key, note: text });
+      if (error) console.error('saveNote upsert:', error);
+    } else {
+      const { error } = await supabase.from('habit_daily_notes').delete()
+        .eq('user_id', session.user.id).eq('check_date', key);
+      if (error) console.error('saveNote delete:', error);
+    }
+  }, 500);
 }
 
 // ── STREAK CALCULATION ──────────────────────────────────
 function calcStreak() {
-  const store = getStore();
   let streak = 0;
   const d = new Date();
   while (true) {
@@ -950,7 +1072,6 @@ function calcStreak() {
 }
 
 function calcHabitStreak(habitId) {
-  const store = getStore();
   let streak = 0;
   const d = new Date();
   while (true) {
@@ -1019,11 +1140,7 @@ function renderToday() {
   // Notes
   const ni = document.getElementById('notesInput');
   ni.value = day.note || '';
-  ni.oninput = () => {
-    const d2 = getDayData(key);
-    d2.note = ni.value;
-    saveDayData(key, d2);
-  };
+  ni.oninput = () => saveNoteDebounced(key, ni.value);
 }
 
 // ── WEEK VIEW ─────────────────────────────────────────────
@@ -1053,7 +1170,6 @@ function isTodayDate(d) {
 function renderWeek() {
   const days = getWeekDates(weekOffset);
   const todayStr = todayKey();
-  const store = getStore();
   const DAY_LABELS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -1148,22 +1264,31 @@ function getISOWeekKey(date) {
   return `${d.getUTCFullYear()}-W${String(weekNum).padStart(2,'0')}`;
 }
 
-function getWeeklyStore() {
-  try { return JSON.parse(localStorage.getItem('weekly_v1') || '{}'); }
-  catch { return {}; }
-}
-
-function saveWeeklyStore(s) { localStorage.setItem('weekly_v1', JSON.stringify(s)); }
-
 function getWeeklyData(key) {
-  return getWeeklyStore()[key] || {};
+  return weeklyStore[key] || {};
 }
 
-function saveWeeklyValue(weekKey, itemId, value) {
-  const s = getWeeklyStore();
-  if (!s[weekKey]) s[weekKey] = {};
-  s[weekKey][itemId] = value;
-  saveWeeklyStore(s);
+async function saveWeeklyValue(weekKey, itemId, value) {
+  if (!session) return;
+  if (!weeklyStore[weekKey]) weeklyStore[weekKey] = {};
+  const item = WEEKLY_ITEMS.find(i => i.id === itemId);
+  if (value === null || value === undefined) {
+    delete weeklyStore[weekKey][itemId];
+    const { error } = await supabase.from('habit_weekly_metrics').delete()
+      .eq('user_id', session.user.id).eq('week_iso', weekKey).eq('metric_id', itemId);
+    if (error) console.error('saveWeeklyValue delete:', error);
+  } else {
+    weeklyStore[weekKey][itemId] = value;
+    const row = {
+      user_id: session.user.id,
+      week_iso: weekKey,
+      metric_id: itemId,
+      value_num: item && item.type === 'number' ? value : null,
+      value_text: item && item.type === 'barometer' ? value : null
+    };
+    const { error } = await supabase.from('habit_weekly_metrics').upsert(row);
+    if (error) console.error('saveWeeklyValue upsert:', error);
+  }
 }
 
 function weeklyWeekStart(offset) {
@@ -1265,7 +1390,7 @@ function renderWeekly() {
 
 function renderWeeklyProgress() {
   const N = 8;
-  const store = getWeeklyStore();
+  const store = weeklyStore;
   const weeks = [];
   for (let i = N - 1; i >= 0; i--) {
     const monday = weeklyWeekStart(-i);
@@ -1415,9 +1540,170 @@ function setDateLabel() {
 
 document.getElementById('reminderBtn').addEventListener('click', downloadReminders);
 
-// ── INIT ──────────────────────────────────────────────────
+// ── AUTH ──────────────────────────────────────────────────
+const authGate    = document.getElementById('authGate');
+const appEl       = document.getElementById('app');
+const stepEmail   = document.getElementById('authStepEmail');
+const stepCode    = document.getElementById('authStepCode');
+const inputEmail  = document.getElementById('authEmail');
+const inputCode   = document.getElementById('authCode');
+const btnSend     = document.getElementById('authSend');
+const btnVerify   = document.getElementById('authVerify');
+const btnBack     = document.getElementById('authBack');
+const authStatus  = document.getElementById('authStatus');
+const signoutBtn  = document.getElementById('signoutBtn');
+
+let pendingEmail = '';
+
+function showGate() { authGate.hidden = false; appEl.hidden = true; }
+function showApp()  { authGate.hidden = true;  appEl.hidden = false; }
+function showStep(which) {
+  stepEmail.classList.toggle('show', which === 'email');
+  stepCode.classList.toggle('show',  which === 'code');
+}
+function setAuthStatus(msg, cls) {
+  authStatus.className = 'auth-status' + (cls ? ' ' + cls : '');
+  authStatus.textContent = msg || '';
+}
+
+stepEmail.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = inputEmail.value.trim();
+  if (!email) return;
+  btnSend.disabled = true;
+  setAuthStatus('Sending code…');
+  const { error } = await supabase.auth.signInWithOtp({
+    email, options: { shouldCreateUser: true }
+  });
+  if (error) {
+    setAuthStatus(error.message, 'error');
+    btnSend.disabled = false;
+  } else {
+    pendingEmail = email;
+    setAuthStatus('Check your email for a sign-in code.', 'success');
+    showStep('code');
+    btnSend.disabled = false;
+    setTimeout(() => inputCode.focus(), 50);
+  }
+});
+
+stepCode.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const token = inputCode.value.trim();
+  if (!token || !pendingEmail) return;
+  btnVerify.disabled = true;
+  setAuthStatus('Verifying…');
+  const { error } = await supabase.auth.verifyOtp({
+    email: pendingEmail, token, type: 'email'
+  });
+  if (error) {
+    setAuthStatus(error.message, 'error');
+    btnVerify.disabled = false;
+  } else {
+    setAuthStatus('');
+    inputCode.value = '';
+    btnVerify.disabled = false;
+  }
+});
+
+btnBack.addEventListener('click', () => {
+  pendingEmail = '';
+  inputCode.value = '';
+  setAuthStatus('');
+  showStep('email');
+  setTimeout(() => inputEmail.focus(), 50);
+});
+
+signoutBtn.addEventListener('click', async () => {
+  await supabase.auth.signOut();
+  store = {};
+  weeklyStore = {};
+  showStep('email');
+  inputEmail.value = '';
+  inputCode.value = '';
+  pendingEmail = '';
+});
+
+// ── LOCALSTORAGE → SUPABASE MIGRATION (one-time, on first sign-in) ──
+async function migrateLocalStorageIfNeeded() {
+  if (!session) return;
+  if (localStorage.getItem('migrated_to_supabase')) return;
+
+  let localHabits = {}, localWeekly = {};
+  try { localHabits = JSON.parse(localStorage.getItem('habits_v2') || '{}'); } catch {}
+  try { localWeekly = JSON.parse(localStorage.getItem('weekly_v1') || '{}'); } catch {}
+
+  const hasLocal = Object.keys(localHabits).length > 0 || Object.keys(localWeekly).length > 0;
+  if (!hasLocal) { localStorage.setItem('migrated_to_supabase', '1'); return; }
+
+  // Don't overwrite existing Supabase data
+  const [{ count: checkCount }, { count: metricCount }] = await Promise.all([
+    supabase.from('habit_daily_checks').select('*', { count: 'exact', head: true }),
+    supabase.from('habit_weekly_metrics').select('*', { count: 'exact', head: true })
+  ]);
+  if ((checkCount || 0) > 0 || (metricCount || 0) > 0) {
+    localStorage.setItem('migrated_to_supabase', '1');
+    return;
+  }
+
+  const checks = [], notes = [], metrics = [];
+  Object.entries(localHabits).forEach(([date, data]) => {
+    (data.done || []).forEach(habit_id => {
+      checks.push({ user_id: session.user.id, check_date: date, habit_id });
+    });
+    if (data.note) {
+      notes.push({ user_id: session.user.id, check_date: date, note: data.note });
+    }
+  });
+  Object.entries(localWeekly).forEach(([weekKey, data]) => {
+    Object.entries(data).forEach(([metric_id, value]) => {
+      const item = WEEKLY_ITEMS.find(i => i.id === metric_id);
+      if (!item || value == null) return;
+      metrics.push({
+        user_id: session.user.id,
+        week_iso: weekKey,
+        metric_id,
+        value_num: item.type === 'number' ? value : null,
+        value_text: item.type === 'barometer' ? value : null
+      });
+    });
+  });
+
+  if (checks.length)  { const { error } = await supabase.from('habit_daily_checks').insert(checks);  if (error) console.error('migrate checks:', error); }
+  if (notes.length)   { const { error } = await supabase.from('habit_daily_notes').insert(notes);    if (error) console.error('migrate notes:', error); }
+  if (metrics.length) { const { error } = await supabase.from('habit_weekly_metrics').insert(metrics); if (error) console.error('migrate metrics:', error); }
+
+  localStorage.setItem('migrated_to_supabase', '1');
+  console.log(`Migrated to Supabase: ${checks.length} checks, ${notes.length} notes, ${metrics.length} metrics`);
+}
+
+// ── BOOT ──────────────────────────────────────────────────
 setDateLabel();
-renderToday();
+
+supabase.auth.onAuthStateChange(async (_event, newSession) => {
+  session = newSession;
+  if (session) {
+    showApp();
+    await migrateLocalStorageIfNeeded();
+    await loadAll();
+    renderToday();
+  } else {
+    showGate();
+    showStep('email');
+  }
+});
+
+const { data: { session: initial } } = await supabase.auth.getSession();
+session = initial;
+if (session) {
+  showApp();
+  await migrateLocalStorageIfNeeded();
+  await loadAll();
+  renderToday();
+} else {
+  showGate();
+  showStep('email');
+}
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
