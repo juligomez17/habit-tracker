@@ -676,6 +676,73 @@
     .wi-bar[data-val="medium"].selected  { background: rgba(201,169,110,.22); border-color: var(--gold-dim); }
     .wi-bar[data-val="high"].selected    { background: rgba(106,158,111,.22); border-color: var(--green); }
 
+    /* ── WEEKLY PROGRESS DASHBOARD ── */
+    .wp-axis {
+      display: flex;
+      justify-content: space-between;
+      font-size: 9px;
+      color: var(--text-dim);
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      padding: 0 2px;
+    }
+
+    .wp-row {
+      background: var(--bg2);
+      border-radius: 12px;
+      padding: 11px 14px;
+      margin-bottom: 8px;
+    }
+
+    .wp-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .wp-icon { font-size: 14px; }
+
+    .wp-name {
+      flex: 1;
+      font-size: 12px;
+      color: var(--text);
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .wp-summary {
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: .03em;
+      white-space: nowrap;
+    }
+
+    .wp-summary.strong { color: var(--gold); }
+
+    .wp-strip {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 4px;
+    }
+
+    .wp-cell {
+      height: 18px;
+      border-radius: 4px;
+      background: var(--bg3);
+      transition: background .2s;
+    }
+
+    .wp-cell.full      { background: var(--gold); }
+    .wp-cell.partial   { background: rgba(201,169,110,.32); border: 1px solid var(--gold-dim); }
+    .wp-cell.now       { outline: 1.5px solid var(--gold-dim); outline-offset: 1px; }
+    .wp-cell.bar-red    { background: rgba(196,107,90,.75); }
+    .wp-cell.bar-medium { background: rgba(201,169,110,.7); }
+    .wp-cell.bar-high   { background: rgba(106,158,111,.75); }
+
     /* ── REMINDER BUTTON ── */
     .reminder-btn {
       margin-top: 18px;
@@ -802,6 +869,13 @@
       </div>
 
       <div class="weekly-list" id="weeklyList"></div>
+
+      <div class="section-title" style="margin-top:24px">Last 8 Weeks</div>
+      <div class="wp-axis">
+        <span>8 wk ago</span>
+        <span>now</span>
+      </div>
+      <div id="weeklyProgress"></div>
     </div>
 
   </div>
@@ -1184,6 +1258,57 @@ function renderWeekly() {
     }
 
     list.appendChild(card);
+  });
+
+  renderWeeklyProgress();
+}
+
+function renderWeeklyProgress() {
+  const N = 8;
+  const store = getWeeklyStore();
+  const weeks = [];
+  for (let i = N - 1; i >= 0; i--) {
+    const monday = weeklyWeekStart(-i);
+    weeks.push({ key: getISOWeekKey(monday), isNow: i === 0 });
+  }
+
+  const wrap = document.getElementById('weeklyProgress');
+  wrap.innerHTML = '';
+
+  WEEKLY_ITEMS.forEach(item => {
+    let metCount = 0;
+    const cells = weeks.map(w => {
+      const val = (store[w.key] || {})[item.id];
+      const met = isGoalMet(item, val);
+      if (met) metCount++;
+      let cls = 'wp-cell';
+      if (item.type === 'number') {
+        if (met) cls += ' full';
+        else if (val && val > 0) cls += ' partial';
+      } else if (item.type === 'barometer') {
+        if (val) cls += ' bar-' + val;
+      }
+      if (w.isNow) cls += ' now';
+      const tip = `${w.key}: ${val == null ? '—' : val}`;
+      return `<div class="${cls}" title="${tip}"></div>`;
+    }).join('');
+
+    const summary = item.type === 'number'
+      ? `${metCount}/${N} weeks met`
+      : `${metCount}/${N} strong weeks`;
+    const summaryCls = metCount >= Math.ceil(N * 0.6) ? ' strong' : '';
+
+    const row = document.createElement('div');
+    row.className = 'wp-row';
+    row.innerHTML = `
+      <div class="wp-header">
+        <span class="wp-icon">${item.icon}</span>
+        <span class="wp-name">${item.name}</span>
+        <span class="wp-summary${summaryCls}">${summary}</span>
+      </div>
+      <div class="wp-strip">${cells}</div>
+    `;
+    wrap.appendChild(row);
   });
 }
 
