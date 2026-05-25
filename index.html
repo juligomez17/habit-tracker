@@ -529,6 +529,171 @@
 
     .habit-row.just-checked { animation: pop .3s ease; }
 
+    /* ── WEEKLY VIEW ── */
+    .weekly-summary {
+      background: var(--bg2);
+      border: 1px solid var(--gold-dim);
+      border-radius: 14px;
+      padding: 14px 18px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .ws-label {
+      font-size: 11px;
+      color: var(--gold);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .ws-value {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 26px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1;
+    }
+
+    .ws-total {
+      font-size: 14px;
+      color: var(--text-dim);
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 400;
+    }
+
+    .weekly-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .weekly-item {
+      background: var(--bg2);
+      border-radius: 14px;
+      padding: 14px 16px;
+      border: 1px solid transparent;
+      transition: border-color .2s;
+    }
+
+    .weekly-item.goal-met { border-color: var(--gold-dim); }
+
+    .wi-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .wi-icon {
+      font-size: 20px;
+      width: 34px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg3);
+      border-radius: 9px;
+      flex-shrink: 0;
+    }
+
+    .weekly-item.goal-met .wi-icon { background: var(--gold-glow); }
+
+    .wi-name {
+      flex: 1;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .wi-goal {
+      font-size: 11px;
+      color: var(--text-dim);
+      letter-spacing: .04em;
+    }
+
+    .wi-goal.met { color: var(--gold); }
+
+    .wi-stepper {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .wi-btn {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      border: 1px solid var(--bg3);
+      background: var(--bg3);
+      color: var(--text);
+      font-size: 18px;
+      font-weight: 400;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .15s;
+      flex-shrink: 0;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .wi-btn:active { transform: scale(0.92); background: var(--bg2); }
+    .wi-btn:disabled { opacity: .35; cursor: default; }
+
+    .wi-value {
+      flex: 1;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 28px;
+      font-weight: 600;
+      color: var(--text);
+      text-align: center;
+      line-height: 1;
+    }
+
+    .weekly-item.goal-met .wi-value { color: var(--gold); }
+
+    .wi-barometer {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 6px;
+    }
+
+    .wi-bar {
+      padding: 10px 0;
+      border-radius: 9px;
+      border: 1px solid var(--bg3);
+      background: var(--bg3);
+      color: var(--text-dim);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all .2s;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .wi-bar.selected { color: var(--text); }
+    .wi-bar[data-val="red"].selected     { background: rgba(196,107,90,.22);  border-color: var(--red); }
+    .wi-bar[data-val="medium"].selected  { background: rgba(201,169,110,.22); border-color: var(--gold-dim); }
+    .wi-bar[data-val="high"].selected    { background: rgba(106,158,111,.22); border-color: var(--green); }
+
+    /* ── REMINDER BUTTON ── */
+    .reminder-btn {
+      margin-top: 18px;
+      width: 100%;
+      background: var(--bg2);
+      border: 1px solid var(--bg3);
+      border-radius: 12px;
+      padding: 12px;
+      color: var(--text-mid);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all .15s;
+    }
+
+    .reminder-btn:active { background: var(--bg3); }
+    .reminder-btn .rb-sub { display: block; font-size: 10px; color: var(--text-dim); margin-top: 3px; letter-spacing: .04em; }
+
     /* Page transitions */
     .view { display: none; }
     .view.active { display: block; }
@@ -549,7 +714,8 @@
 
   <div class="tab-bar">
     <button class="tab active" data-tab="today">Today</button>
-    <button class="tab" data-tab="week">This Week</button>
+    <button class="tab" data-tab="week">Stats</button>
+    <button class="tab" data-tab="weekly">Weekly</button>
   </div>
 
   <div class="scroll-area">
@@ -566,7 +732,7 @@
         </svg>
         <div class="progress-meta">
           <div class="label">Daily Progress</div>
-          <div class="fraction" id="fractionText">0 <span>/ 9</span></div>
+          <div class="fraction" id="fractionText">0 <span>/ 8</span></div>
           <div class="pct" id="pctText">Keep going!</div>
         </div>
       </div>
@@ -577,6 +743,11 @@
         <div class="notes-label">Daily Note</div>
         <textarea class="notes-input" id="notesInput" placeholder="How did today feel? Any wins or blocks..." rows="3"></textarea>
       </div>
+
+      <button class="reminder-btn" id="reminderBtn">
+        🔔 Set up phone reminders
+        <span class="rb-sub">daily 8pm · sundays 10am · adds to your calendar</span>
+      </button>
     </div>
 
     <!-- WEEK VIEW -->
@@ -617,6 +788,22 @@
       <div id="habitGrid"></div>
     </div>
 
+    <!-- WEEKLY VIEW -->
+    <div class="view" id="view-weekly">
+      <div class="week-nav">
+        <button class="week-btn" id="prevWeeklyWeek">‹</button>
+        <div class="wlabel" id="weeklyWeekLabel"></div>
+        <button class="week-btn" id="nextWeeklyWeek">›</button>
+      </div>
+
+      <div class="weekly-summary" id="weeklySummary">
+        <div class="ws-label">Goals Met</div>
+        <div class="ws-value"><span id="weeklyGoalsMet">0</span><span class="ws-total"> / <span id="weeklyGoalsTotal">5</span></span></div>
+      </div>
+
+      <div class="weekly-list" id="weeklyList"></div>
+    </div>
+
   </div>
 </div>
 
@@ -630,7 +817,15 @@ const HABITS = [
   { id:'mindfulness', name:'Mindfulness', icon:'🧘' },
   { id:'nutrition',   name:'Nutrition',   icon:'🥗' },
   { id:'reading',     name:'Reading',     icon:'📖' },
-  { id:'chess',       name:'Chess',       icon:'♟️' },
+];
+
+const WEEKLY_ITEMS = [
+  { id:'groups',     name:'Friend Groups Seen',      icon:'👥', type:'number',    goal:2, unit:'groups' },
+  { id:'dates',      name:'Dates',                   icon:'💝', type:'number',    goal:1, unit:'dates' },
+  { id:'ldFt',       name:'LD Friendships FT',       icon:'📞', type:'number',    goal:1, unit:'calls' },
+  { id:'workExec',   name:'Work Execution',          icon:'💼', type:'barometer', options:['red','medium','high'] },
+  { id:'lfArticles', name:'NSP — LF Articles',       icon:'📰', type:'number',    goal:2, unit:'articles' },
+  { id:'contacted',  name:'NSP — People Contacted',  icon:'🤝', type:'number',    goal:2, unit:'people' },
 ];
 
 // ── STORAGE ─────────────────────────────────────────────
@@ -867,6 +1062,203 @@ function renderWeek() {
   });
 }
 
+// ── WEEKLY TRACKER ────────────────────────────────────────
+let weeklyOffset = 0; // 0 = current ISO week
+
+function getISOWeekKey(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNum = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return `${d.getUTCFullYear()}-W${String(weekNum).padStart(2,'0')}`;
+}
+
+function getWeeklyStore() {
+  try { return JSON.parse(localStorage.getItem('weekly_v1') || '{}'); }
+  catch { return {}; }
+}
+
+function saveWeeklyStore(s) { localStorage.setItem('weekly_v1', JSON.stringify(s)); }
+
+function getWeeklyData(key) {
+  return getWeeklyStore()[key] || {};
+}
+
+function saveWeeklyValue(weekKey, itemId, value) {
+  const s = getWeeklyStore();
+  if (!s[weekKey]) s[weekKey] = {};
+  s[weekKey][itemId] = value;
+  saveWeeklyStore(s);
+}
+
+function weeklyWeekStart(offset) {
+  const today = new Date();
+  const dow = today.getDay();
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1) + offset * 7);
+  monday.setHours(0,0,0,0);
+  return monday;
+}
+
+function isGoalMet(item, value) {
+  if (item.type === 'number') return (value || 0) >= item.goal;
+  if (item.type === 'barometer') return value === 'high';
+  return false;
+}
+
+function renderWeekly() {
+  const monday = weeklyWeekStart(weeklyOffset);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  const weekKey = getISOWeekKey(monday);
+  const data = getWeeklyData(weekKey);
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  document.getElementById('weeklyWeekLabel').textContent =
+    `${MONTHS[monday.getMonth()]} ${monday.getDate()} – ${MONTHS[sunday.getMonth()]} ${sunday.getDate()}`;
+
+  // Disable next button if we're on current week
+  document.getElementById('nextWeeklyWeek').disabled = weeklyOffset >= 0;
+
+  // Goals met
+  let met = 0;
+  const trackableGoals = WEEKLY_ITEMS.filter(it => it.type === 'number').length;
+  WEEKLY_ITEMS.forEach(it => { if (isGoalMet(it, data[it.id])) met++; });
+  document.getElementById('weeklyGoalsMet').textContent = met;
+  document.getElementById('weeklyGoalsTotal').textContent = trackableGoals;
+
+  const list = document.getElementById('weeklyList');
+  list.innerHTML = '';
+
+  WEEKLY_ITEMS.forEach(item => {
+    const value = data[item.id];
+    const met = isGoalMet(item, value);
+    const card = document.createElement('div');
+    card.className = 'weekly-item' + (met ? ' goal-met' : '');
+
+    if (item.type === 'number') {
+      const cur = value || 0;
+      card.innerHTML = `
+        <div class="wi-header">
+          <div class="wi-icon">${item.icon}</div>
+          <div class="wi-name">${item.name}</div>
+          <div class="wi-goal ${met ? 'met' : ''}">${met ? '✓ ' : ''}goal: ${item.goal}</div>
+        </div>
+        <div class="wi-stepper">
+          <button class="wi-btn wi-minus" ${cur <= 0 ? 'disabled' : ''}>−</button>
+          <div class="wi-value">${cur}</div>
+          <button class="wi-btn wi-plus">+</button>
+        </div>
+      `;
+      card.querySelector('.wi-plus').addEventListener('click', () => {
+        saveWeeklyValue(weekKey, item.id, cur + 1);
+        renderWeekly();
+      });
+      card.querySelector('.wi-minus').addEventListener('click', () => {
+        if (cur > 0) {
+          saveWeeklyValue(weekKey, item.id, cur - 1);
+          renderWeekly();
+        }
+      });
+    } else if (item.type === 'barometer') {
+      card.innerHTML = `
+        <div class="wi-header">
+          <div class="wi-icon">${item.icon}</div>
+          <div class="wi-name">${item.name}</div>
+          <div class="wi-goal">gut check</div>
+        </div>
+        <div class="wi-barometer">
+          ${item.options.map(opt => `
+            <button class="wi-bar ${value === opt ? 'selected' : ''}" data-val="${opt}">${opt}</button>
+          `).join('')}
+        </div>
+      `;
+      card.querySelectorAll('.wi-bar').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const val = btn.dataset.val;
+          saveWeeklyValue(weekKey, item.id, value === val ? null : val);
+          renderWeekly();
+        });
+      });
+    }
+
+    list.appendChild(card);
+  });
+}
+
+// ── PHONE REMINDERS (.ics) ────────────────────────────────
+function downloadReminders() {
+  const pad = n => String(n).padStart(2, '0');
+  const now = new Date();
+
+  // Daily 8pm: today at 8pm if before 8pm, otherwise tomorrow
+  const daily = new Date(now);
+  daily.setHours(20, 0, 0, 0);
+  if (daily <= now) daily.setDate(daily.getDate() + 1);
+
+  // Next Sunday 10am (Sunday counts as upcoming if today is Sunday before 10am)
+  const sunday = new Date(now);
+  sunday.setHours(10, 0, 0, 0);
+  const dow = sunday.getDay();
+  if (dow !== 0 || sunday <= now) {
+    const days = dow === 0 ? 7 : (7 - dow);
+    sunday.setDate(sunday.getDate() + days);
+  }
+
+  const fmt = d => `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+  const dailyEnd = new Date(daily.getTime() + 15*60000);
+  const sundayEnd = new Date(sunday.getTime() + 15*60000);
+  const stamp = Date.now();
+
+  const ics = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Daily Habits//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    `UID:habits-daily-${stamp}@local`,
+    `DTSTAMP:${fmt(now)}`,
+    `DTSTART:${fmt(daily)}`,
+    `DTEND:${fmt(dailyEnd)}`,
+    'RRULE:FREQ=DAILY',
+    'SUMMARY:Daily habit check-in',
+    'DESCRIPTION:Open Daily Habits and check off today\'s habits.',
+    'BEGIN:VALARM',
+    'ACTION:DISPLAY',
+    'DESCRIPTION:Habit check-in',
+    'TRIGGER:-PT0M',
+    'END:VALARM',
+    'END:VEVENT',
+    'BEGIN:VEVENT',
+    `UID:habits-weekly-${stamp}@local`,
+    `DTSTAMP:${fmt(now)}`,
+    `DTSTART:${fmt(sunday)}`,
+    `DTEND:${fmt(sundayEnd)}`,
+    'RRULE:FREQ=WEEKLY;BYDAY=SU',
+    'SUMMARY:Weekly tracker check-in',
+    'DESCRIPTION:Fill out this week\'s totals in Daily Habits.',
+    'BEGIN:VALARM',
+    'ACTION:DISPLAY',
+    'DESCRIPTION:Weekly tracker',
+    'TRIGGER:-PT0M',
+    'END:VALARM',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n');
+
+  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'habits-reminders.ics';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 // ── TABS ──────────────────────────────────────────────────
 document.querySelectorAll('.tab').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -875,13 +1267,17 @@ document.querySelectorAll('.tab').forEach(btn => {
     const tab = btn.dataset.tab;
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById('view-' + tab).classList.add('active');
-    document.getElementById('pageTitle').textContent = tab === 'today' ? 'Today' : 'This Week';
+    const titles = { today: 'Today', week: 'Stats', weekly: 'Weekly' };
+    document.getElementById('pageTitle').textContent = titles[tab] || 'Today';
     if (tab === 'week') renderWeek();
+    if (tab === 'weekly') renderWeekly();
   });
 });
 
 document.getElementById('prevWeek').addEventListener('click', () => { weekOffset--; renderWeek(); });
 document.getElementById('nextWeek').addEventListener('click', () => { if (weekOffset < 0) { weekOffset++; renderWeek(); } });
+document.getElementById('prevWeeklyWeek').addEventListener('click', () => { weeklyOffset--; renderWeekly(); });
+document.getElementById('nextWeeklyWeek').addEventListener('click', () => { if (weeklyOffset < 0) { weeklyOffset++; renderWeekly(); } });
 
 // ── DATE HEADER ───────────────────────────────────────────
 function setDateLabel() {
@@ -891,6 +1287,8 @@ function setDateLabel() {
   document.getElementById('dateLabel').textContent =
     `${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}`;
 }
+
+document.getElementById('reminderBtn').addEventListener('click', downloadReminders);
 
 // ── INIT ──────────────────────────────────────────────────
 setDateLabel();
