@@ -1,4 +1,4 @@
-const CACHE_NAME = 'habits-v5';
+const CACHE_NAME = 'habits-v6';
 const ASSETS = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', e => {

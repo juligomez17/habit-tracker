@@ -766,6 +766,8 @@
     .view.active { display: block; }
 
     /* ── AUTH GATE ── */
+    /* Universal: ensure [hidden] actually hides, regardless of display rules below. */
+    [hidden] { display: none !important; }
     .auth-gate { min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: 32px 24px; max-width: 430px; margin: 0 auto; }
     .auth-card { width: 100%; max-width: 320px; text-align: center; }
     .auth-flame { font-size: 44px; margin-bottom: 14px; opacity: 0.9; }
