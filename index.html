@@ -949,7 +949,16 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const SUPABASE_URL = 'https://kdaxubsmszojkdsxjpgs.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_Z31hI91ksy8uDB1x-sVP_A_aSuVVaF0';
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    // App uses code entry exclusively; disable URL-hash auto-detect to prevent
+    // double-verify (which consumes the token before code submission and breaks
+    // the flow when both magic link + code are processed).
+    detectSessionInUrl: false,
+    persistSession: true,
+    autoRefreshToken: true,
+  },
+});
 
 const HABITS = [
   { id:'sleep',       name:'Sleep',       icon:'🌙' },
@@ -1593,17 +1602,47 @@ stepCode.addEventListener('submit', async (e) => {
   if (!token || !pendingEmail) return;
   btnVerify.disabled = true;
   setAuthStatus('Verifying…');
-  const { error } = await supabase.auth.verifyOtp({
+
+  // Guard: if we somehow already have a session (e.g., from a successful prior
+  // verify whose UI didn't transition), skip the second call entirely.
+  const { data: { session: existing } } = await supabase.auth.getSession();
+  if (existing) {
+    console.log('[habits-auth] already signed in, skipping verifyOtp');
+    session = existing;
+    setAuthStatus('Already signed in!', 'success');
+    inputCode.value = '';
+    showApp();
+    try { await migrateLocalStorageIfNeeded(); await loadAll(); renderToday(); }
+    catch (err) { console.error('[habits-auth] post-signin load:', err); }
+    btnVerify.disabled = false;
+    return;
+  }
+
+  const { data, error } = await supabase.auth.verifyOtp({
     email: pendingEmail, token, type: 'email'
   });
+
   if (error) {
+    console.error('[habits-auth] verifyOtp error:', error);
     setAuthStatus(error.message, 'error');
     btnVerify.disabled = false;
-  } else {
-    setAuthStatus('');
-    inputCode.value = '';
-    btnVerify.disabled = false;
+    return;
   }
+
+  // EXPLICIT transition — don't rely on onAuthStateChange firing reliably.
+  console.log('[habits-auth] verifyOtp success, session:', !!data?.session, 'user:', data?.user?.id);
+  if (data?.session) {
+    session = data.session;
+    setAuthStatus('Signed in!', 'success');
+    inputCode.value = '';
+    showApp();
+    try { await migrateLocalStorageIfNeeded(); await loadAll(); renderToday(); }
+    catch (err) { console.error('[habits-auth] post-signin load:', err); }
+  } else {
+    // Shouldn't happen: verify succeeded but no session returned.
+    setAuthStatus('Verified but no session. Refresh the page.', 'error');
+  }
+  btnVerify.disabled = false;
 });
 
 btnBack.addEventListener('click', () => {
