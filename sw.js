@@ -1,20 +1,50 @@
-const CACHE_NAME = 'habits-v7';
-const ASSETS = ['/', '/index.html', '/manifest.json'];
+// Service worker — network-first for HTML, cache-first for static assets.
+// This ensures the latest app code loads when online; cache only kicks in
+// as offline fallback. Prevents stuck cached pages after deploys.
+
+const CACHE_NAME = 'habits-v8';
+const STATIC_ASSETS = ['/manifest.json'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS)));
+  e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(STATIC_ASSETS)));
   self.skipWaiting();
 });
 
 self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(keys =>
-    Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-  ));
-  self.clients.claim();
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+    ).then(() => self.clients.claim())
+  );
 });
 
 self.addEventListener('fetch', e => {
+  const req = e.request;
+  if (req.method !== 'GET') return;
+
+  const isHTML = req.mode === 'navigate' ||
+                 (req.headers.get('accept') || '').includes('text/html');
+
+  if (isHTML) {
+    // Network-first for HTML so deploys always reach the user.
+    e.respondWith(
+      fetch(req).then(resp => {
+        const clone = resp.clone();
+        caches.open(CACHE_NAME).then(c => c.put(req, clone)).catch(() => {});
+        return resp;
+      }).catch(() => caches.match(req) || caches.match('/'))
+    );
+    return;
+  }
+
+  // Cache-first for static assets (icons, manifest, etc.)
   e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
+    caches.match(req).then(cached => cached || fetch(req).then(resp => {
+      if (resp.ok) {
+        const clone = resp.clone();
+        caches.open(CACHE_NAME).then(c => c.put(req, clone)).catch(() => {});
+      }
+      return resp;
+    }))
   );
 });
