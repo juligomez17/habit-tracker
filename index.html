@@ -807,30 +807,12 @@
 </head>
 <body>
 
-<!-- AUTH GATE -->
-<div class="auth-gate" id="authGate" hidden>
-  <div class="auth-card">
-    <div class="auth-flame">🔥</div>
-    <h1 class="auth-title">Daily Habits</h1>
-    <p class="auth-intro">Sign in to sync your habits across devices.</p>
+<!-- AUTH GATE REMOVED — app is now publicly accessible.
+     Sensitive cross-app data (shared_people, assistant_*) stays
+     protected by RLS; this app only touches habit_* tables which
+     have an anon-role policy scoped to Juli's user_id. -->
 
-    <form class="auth-form auth-step show" id="authStepEmail">
-      <input id="authEmail" type="email" placeholder="your email" autocomplete="email" required>
-      <button type="submit" id="authSend">Send sign-in code</button>
-    </form>
-
-    <form class="auth-form auth-step" id="authStepCode">
-      <input id="authCode" type="text" inputmode="numeric" autocomplete="one-time-code"
-             maxlength="8" placeholder="········" required>
-      <button type="submit" id="authVerify">Verify code</button>
-      <button type="button" class="auth-back" id="authBack">Use a different email</button>
-    </form>
-
-    <p class="auth-status" id="authStatus"></p>
-  </div>
-</div>
-
-<div id="app" hidden>
+<div id="app">
   <header>
     <div class="date-label" id="dateLabel"></div>
     <div class="header-inner" style="margin-top:4px">
@@ -879,7 +861,6 @@
         <span class="rb-sub">daily 8pm · sundays 10am · adds to your calendar</span>
       </button>
 
-      <button class="signout-btn" id="signoutBtn">Sign out</button>
     </div>
 
     <!-- WEEK VIEW -->
@@ -952,15 +933,12 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const SUPABASE_URL = 'https://kdaxubsmszojkdsxjpgs.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_Z31hI91ksy8uDB1x-sVP_A_aSuVVaF0';
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    // App uses code entry exclusively; disable URL-hash auto-detect to prevent
-    // double-verify (which consumes the token before code submission and breaks
-    // the flow when both magic link + code are processed).
-    detectSessionInUrl: false,
-    persistSession: true,
-    autoRefreshToken: true,
-  },
+  auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
 });
+
+// Public app — no auth. All queries use Juli's hardcoded user_id.
+// Anon role has scoped RLS policies for habit_* tables (migration 005).
+const JULI_USER_ID = 'b87e0ad9-cb4c-4452-b523-c28249fece62';
 
 const HABITS = [
   { id:'sleep',       name:'Sleep',       icon:'🌙' },
@@ -983,7 +961,6 @@ const WEEKLY_ITEMS = [
 ];
 
 // ── STATE (in-memory cache; source of truth = Supabase) ─────────
-let session = null;
 let store = {};         // { 'YYYY-MM-DD': { done:[habitId,...], note:'' } }
 let weeklyStore = {};   // { 'YYYY-W##': { metricId: value, ... } }
 let noteSaveTimer = null;
@@ -998,7 +975,6 @@ function getDayData(key) {
 }
 
 async function loadAll() {
-  if (!session) return;
   const since = new Date();
   since.setDate(since.getDate() - 120);
   const sinceKey = `${since.getFullYear()}-${String(since.getMonth()+1).padStart(2,'0')}-${String(since.getDate()).padStart(2,'0')}`;
@@ -1030,7 +1006,6 @@ async function loadAll() {
 }
 
 async function toggleHabit(habitId) {
-  if (!session) return;
   const key = todayKey();
   if (!store[key]) store[key] = { done: [], note: '' };
   const idx = store[key].done.indexOf(habitId);
@@ -1040,12 +1015,12 @@ async function toggleHabit(habitId) {
 
   if (adding) {
     const { error } = await supabase.from('habit_daily_checks').insert({
-      user_id: session.user.id, check_date: key, habit_id: habitId
+      user_id: JULI_USER_ID, check_date: key, habit_id: habitId
     });
     if (error) console.error('toggleHabit insert:', error);
   } else {
     const { error } = await supabase.from('habit_daily_checks').delete()
-      .eq('user_id', session.user.id).eq('check_date', key).eq('habit_id', habitId);
+      .eq('user_id', JULI_USER_ID).eq('check_date', key).eq('habit_id', habitId);
     if (error) console.error('toggleHabit delete:', error);
   }
 }
@@ -1055,14 +1030,13 @@ async function saveNoteDebounced(key, text) {
   store[key].note = text;
   clearTimeout(noteSaveTimer);
   noteSaveTimer = setTimeout(async () => {
-    if (!session) return;
-    if (text) {
+      if (text) {
       const { error } = await supabase.from('habit_daily_notes')
-        .upsert({ user_id: session.user.id, check_date: key, note: text });
+        .upsert({ user_id: JULI_USER_ID, check_date: key, note: text });
       if (error) console.error('saveNote upsert:', error);
     } else {
       const { error } = await supabase.from('habit_daily_notes').delete()
-        .eq('user_id', session.user.id).eq('check_date', key);
+        .eq('user_id', JULI_USER_ID).eq('check_date', key);
       if (error) console.error('saveNote delete:', error);
     }
   }, 500);
@@ -1280,18 +1254,17 @@ function getWeeklyData(key) {
 }
 
 async function saveWeeklyValue(weekKey, itemId, value) {
-  if (!session) return;
   if (!weeklyStore[weekKey]) weeklyStore[weekKey] = {};
   const item = WEEKLY_ITEMS.find(i => i.id === itemId);
   if (value === null || value === undefined) {
     delete weeklyStore[weekKey][itemId];
     const { error } = await supabase.from('habit_weekly_metrics').delete()
-      .eq('user_id', session.user.id).eq('week_iso', weekKey).eq('metric_id', itemId);
+      .eq('user_id', JULI_USER_ID).eq('week_iso', weekKey).eq('metric_id', itemId);
     if (error) console.error('saveWeeklyValue delete:', error);
   } else {
     weeklyStore[weekKey][itemId] = value;
     const row = {
-      user_id: session.user.id,
+      user_id: JULI_USER_ID,
       week_iso: weekKey,
       metric_id: itemId,
       value_num: item && item.type === 'number' ? value : null,
@@ -1551,200 +1524,10 @@ function setDateLabel() {
 
 document.getElementById('reminderBtn').addEventListener('click', downloadReminders);
 
-// ── AUTH ──────────────────────────────────────────────────
-const authGate    = document.getElementById('authGate');
-const appEl       = document.getElementById('app');
-const stepEmail   = document.getElementById('authStepEmail');
-const stepCode    = document.getElementById('authStepCode');
-const inputEmail  = document.getElementById('authEmail');
-const inputCode   = document.getElementById('authCode');
-const btnSend     = document.getElementById('authSend');
-const btnVerify   = document.getElementById('authVerify');
-const btnBack     = document.getElementById('authBack');
-const authStatus  = document.getElementById('authStatus');
-const signoutBtn  = document.getElementById('signoutBtn');
-
-let pendingEmail = '';
-
-function showGate() { authGate.hidden = false; appEl.hidden = true; }
-function showApp()  { authGate.hidden = true;  appEl.hidden = false; }
-function showStep(which) {
-  stepEmail.classList.toggle('show', which === 'email');
-  stepCode.classList.toggle('show',  which === 'code');
-}
-function setAuthStatus(msg, cls) {
-  authStatus.className = 'auth-status' + (cls ? ' ' + cls : '');
-  authStatus.textContent = msg || '';
-}
-
-stepEmail.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const email = inputEmail.value.trim();
-  if (!email) return;
-  btnSend.disabled = true;
-  setAuthStatus('Sending code…');
-  const { error } = await supabase.auth.signInWithOtp({
-    email, options: { shouldCreateUser: true }
-  });
-  if (error) {
-    setAuthStatus(error.message, 'error');
-    btnSend.disabled = false;
-  } else {
-    pendingEmail = email;
-    setAuthStatus('Check your email for a sign-in code.', 'success');
-    showStep('code');
-    btnSend.disabled = false;
-    setTimeout(() => inputCode.focus(), 50);
-  }
-});
-
-stepCode.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const token = inputCode.value.trim();
-  if (!token || !pendingEmail) return;
-  btnVerify.disabled = true;
-  setAuthStatus('Verifying…');
-
-  // Guard: if we somehow already have a session (e.g., from a successful prior
-  // verify whose UI didn't transition), skip the second call entirely.
-  const { data: { session: existing } } = await supabase.auth.getSession();
-  if (existing) {
-    console.log('[habits-auth] already signed in, skipping verifyOtp');
-    session = existing;
-    setAuthStatus('Already signed in!', 'success');
-    inputCode.value = '';
-    showApp();
-    try { await migrateLocalStorageIfNeeded(); await loadAll(); renderToday(); }
-    catch (err) { console.error('[habits-auth] post-signin load:', err); }
-    btnVerify.disabled = false;
-    return;
-  }
-
-  const { data, error } = await supabase.auth.verifyOtp({
-    email: pendingEmail, token, type: 'email'
-  });
-
-  if (error) {
-    console.error('[habits-auth] verifyOtp error:', error);
-    setAuthStatus(error.message, 'error');
-    btnVerify.disabled = false;
-    return;
-  }
-
-  // EXPLICIT transition — don't rely on onAuthStateChange firing reliably.
-  console.log('[habits-auth] verifyOtp success, session:', !!data?.session, 'user:', data?.user?.id);
-  if (data?.session) {
-    session = data.session;
-    setAuthStatus('Signed in!', 'success');
-    inputCode.value = '';
-    showApp();
-    try { await migrateLocalStorageIfNeeded(); await loadAll(); renderToday(); }
-    catch (err) { console.error('[habits-auth] post-signin load:', err); }
-  } else {
-    // Shouldn't happen: verify succeeded but no session returned.
-    setAuthStatus('Verified but no session. Refresh the page.', 'error');
-  }
-  btnVerify.disabled = false;
-});
-
-btnBack.addEventListener('click', () => {
-  pendingEmail = '';
-  inputCode.value = '';
-  setAuthStatus('');
-  showStep('email');
-  setTimeout(() => inputEmail.focus(), 50);
-});
-
-signoutBtn.addEventListener('click', async () => {
-  await supabase.auth.signOut();
-  store = {};
-  weeklyStore = {};
-  showStep('email');
-  inputEmail.value = '';
-  inputCode.value = '';
-  pendingEmail = '';
-});
-
-// ── LOCALSTORAGE → SUPABASE MIGRATION (one-time, on first sign-in) ──
-async function migrateLocalStorageIfNeeded() {
-  if (!session) return;
-  if (localStorage.getItem('migrated_to_supabase')) return;
-
-  let localHabits = {}, localWeekly = {};
-  try { localHabits = JSON.parse(localStorage.getItem('habits_v2') || '{}'); } catch {}
-  try { localWeekly = JSON.parse(localStorage.getItem('weekly_v1') || '{}'); } catch {}
-
-  const hasLocal = Object.keys(localHabits).length > 0 || Object.keys(localWeekly).length > 0;
-  if (!hasLocal) { localStorage.setItem('migrated_to_supabase', '1'); return; }
-
-  // Don't overwrite existing Supabase data
-  const [{ count: checkCount }, { count: metricCount }] = await Promise.all([
-    supabase.from('habit_daily_checks').select('*', { count: 'exact', head: true }),
-    supabase.from('habit_weekly_metrics').select('*', { count: 'exact', head: true })
-  ]);
-  if ((checkCount || 0) > 0 || (metricCount || 0) > 0) {
-    localStorage.setItem('migrated_to_supabase', '1');
-    return;
-  }
-
-  const checks = [], notes = [], metrics = [];
-  Object.entries(localHabits).forEach(([date, data]) => {
-    (data.done || []).forEach(habit_id => {
-      checks.push({ user_id: session.user.id, check_date: date, habit_id });
-    });
-    if (data.note) {
-      notes.push({ user_id: session.user.id, check_date: date, note: data.note });
-    }
-  });
-  Object.entries(localWeekly).forEach(([weekKey, data]) => {
-    Object.entries(data).forEach(([metric_id, value]) => {
-      const item = WEEKLY_ITEMS.find(i => i.id === metric_id);
-      if (!item || value == null) return;
-      metrics.push({
-        user_id: session.user.id,
-        week_iso: weekKey,
-        metric_id,
-        value_num: item.type === 'number' ? value : null,
-        value_text: item.type === 'barometer' ? value : null
-      });
-    });
-  });
-
-  if (checks.length)  { const { error } = await supabase.from('habit_daily_checks').insert(checks);  if (error) console.error('migrate checks:', error); }
-  if (notes.length)   { const { error } = await supabase.from('habit_daily_notes').insert(notes);    if (error) console.error('migrate notes:', error); }
-  if (metrics.length) { const { error } = await supabase.from('habit_weekly_metrics').insert(metrics); if (error) console.error('migrate metrics:', error); }
-
-  localStorage.setItem('migrated_to_supabase', '1');
-  console.log(`Migrated to Supabase: ${checks.length} checks, ${notes.length} notes, ${metrics.length} metrics`);
-}
-
-// ── BOOT ──────────────────────────────────────────────────
+// ── BOOT (no auth — public app, queries hardcoded to JULI_USER_ID) ──
 setDateLabel();
-
-supabase.auth.onAuthStateChange(async (_event, newSession) => {
-  session = newSession;
-  if (session) {
-    showApp();
-    await migrateLocalStorageIfNeeded();
-    await loadAll();
-    renderToday();
-  } else {
-    showGate();
-    showStep('email');
-  }
-});
-
-const { data: { session: initial } } = await supabase.auth.getSession();
-session = initial;
-if (session) {
-  showApp();
-  await migrateLocalStorageIfNeeded();
-  await loadAll();
-  renderToday();
-} else {
-  showGate();
-  showStep('email');
-}
+await loadAll();
+renderToday();
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
