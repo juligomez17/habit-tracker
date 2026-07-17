@@ -953,12 +953,16 @@ const HABITS = [
 ];
 
 const WEEKLY_ITEMS = [
-  { id:'groups',     name:'Friend Groups Seen',      icon:'👥', type:'number',    goal:2, unit:'groups' },
-  { id:'dates',      name:'Dates',                   icon:'💝', type:'number',    goal:1, unit:'dates' },
-  { id:'ldFt',       name:'LD Friendships FT',       icon:'📞', type:'number',    goal:1, unit:'calls' },
-  { id:'workExec',   name:'Work Execution',          icon:'💼', type:'barometer', options:['red','medium','high'] },
-  { id:'lfArticles', name:'NSP — LF Articles',       icon:'📰', type:'number',    goal:2, unit:'articles' },
-  { id:'contacted',  name:'NSP — People Contacted',  icon:'🤝', type:'number',    goal:2, unit:'people' },
+  // ① Master AI + new gig
+  { id:'portcoDeepDive',     name:'Portco AI Deep Dive',         icon:'🔬', type:'number',    goal:1, unit:'dives' },
+  { id:'valueChainDeepDive', name:'AI Value-Chain Deep Dive',    icon:'🔗', type:'number',    goal:1, unit:'dives' },
+  { id:'contacted',          name:'Founders & People Contacted', icon:'🤝', type:'number',    goal:2, unit:'people' },
+  { id:'workExec',           name:'Work Execution',              icon:'💼', type:'barometer', options:['red','medium','high'] },
+  // ② Meet new people / date
+  { id:'groups',             name:'Clubs & Social Activities',   icon:'👥', type:'number',    goal:3, unit:'outings' },
+  { id:'dates',              name:'Dates',                       icon:'💝', type:'number',    goal:1, unit:'dates' },
+  // ③ Foster interests
+  { id:'movies',             name:'Movies Watched',              icon:'🎬', type:'number',    goal:1, unit:'films' },
 ];
 
 // ── STATE (in-memory cache; source of truth = Supabase) ─────────
